@@ -8,29 +8,73 @@ const API_PLATFORMS = {
     name: 'DeepSeek',
     description: '深度求索AI平台，提供强大的文本分析能力',
     placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://api.deepseek.com',
     testEndpoint: 'https://api.deepseek.com/v1/models',
+    models: ['deepseek-chat', 'deepseek-reasoner'],
     icon: '🧠'
   },
   openai: {
     name: 'OpenAI',
     description: 'OpenAI GPT系列模型，支持多种AI任务',
     placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://api.openai.com/v1',
     testEndpoint: 'https://api.openai.com/v1/models',
+    models: ['gpt-4', 'gpt-3.5-turbo'],
     icon: '🤖'
   },
   claude: {
     name: 'Claude (Anthropic)',
     description: 'Anthropic Claude模型，擅长分析和推理',
     placeholder: 'sk-ant-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://api.anthropic.com',
     testEndpoint: 'https://api.anthropic.com/v1/models',
+    models: ['claude-3-opus', 'claude-3-sonnet'],
     icon: '🎭'
   },
   gemini: {
     name: 'Google Gemini',
     description: 'Google Gemini模型，多模态AI能力',
     placeholder: 'AIzaSyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     testEndpoint: 'https://generativelanguage.googleapis.com/v1/models',
+    models: ['gemini-pro', 'gemini-pro-vision'],
     icon: '💎'
+  },
+  kimi: {
+    name: 'Kimi (Moonshot)',
+    description: 'Moonshot AI Kimi模型，支持长文本处理',
+    placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://api.moonshot.cn/v1',
+    testEndpoint: 'https://api.moonshot.cn/v1/models',
+    models: ['kimi-k2-0711-preview', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    icon: '🌙'
+  },
+  zhipu: {
+    name: '智谱AI',
+    description: '智谱AI GLM系列模型，中文理解能力强',
+    placeholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.xxxxxxxxxxxxxxxx',
+    baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
+    testEndpoint: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    models: ['glm-4-plus', 'glm-4-air', 'glm-4-flash'],
+    icon: '🧮'
+  },
+  doubao: {
+    name: '豆包 (火山引擎)',
+    description: '火山引擎豆包大模型，企业级AI服务',
+    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+    testEndpoint: 'https://ark.cn-beijing.volces.com/api/v3/chat/completions',
+    models: ['doubao-pro', 'doubao-lite'],
+    icon: '🫘'
+  },
+  grok: {
+    name: 'Grok (xAI)',
+    description: 'xAI Grok模型，具备实时信息获取能力',
+    placeholder: 'xai-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    baseUrl: 'https://api.x.ai/v1',
+    testEndpoint: 'https://api.x.ai/v1/models',
+    models: ['grok-beta', 'grok-vision-beta'],
+    icon: '🚀'
   }
 };
 
@@ -96,6 +140,18 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeysChange }) => {
           break;
         case 'gemini':
           isValid = await validateGeminiKey(key);
+          break;
+        case 'kimi':
+          isValid = await validateKimiKey(key);
+          break;
+        case 'zhipu':
+          isValid = await validateZhipuKey(key);
+          break;
+        case 'doubao':
+          isValid = await validateDoubaoKey(key);
+          break;
+        case 'grok':
+          isValid = await validateGrokKey(key);
           break;
         default:
           isValid = false;
@@ -172,7 +228,79 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeysChange }) => {
     }
   };
 
-  // 处理API密钥输入
+  // Kimi API密钥验证
+  const validateKimiKey = async (key: string): Promise<boolean> => {
+    try {
+      const response = await fetch('https://api.moonshot.cn/v1/models', {
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  // 智谱AI API密钥验证
+  const validateZhipuKey = async (key: string): Promise<boolean> => {
+    try {
+      const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'glm-4-air',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1
+        })
+      });
+      return response.status !== 401 && response.status !== 403;
+    } catch {
+      return false;
+    }
+  };
+
+  // 豆包 API密钥验证
+  const validateDoubaoKey = async (key: string): Promise<boolean> => {
+    try {
+      const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'doubao-lite',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1
+        })
+      });
+      return response.status !== 401 && response.status !== 403;
+    } catch {
+      return false;
+    }
+  };
+
+  // Grok API密钥验证
+   const validateGrokKey = async (key: string): Promise<boolean> => {
+     try {
+       const response = await fetch('https://api.x.ai/v1/models', {
+         headers: {
+           'Authorization': `Bearer ${key}`,
+           'Content-Type': 'application/json'
+         }
+       });
+       return response.ok;
+     } catch {
+       return false;
+     }
+   };
+ 
+    // 处理API密钥输入
   const handleKeyChange = (platform: string, key: string) => {
     const updatedKeys = {
       ...apiKeys,
