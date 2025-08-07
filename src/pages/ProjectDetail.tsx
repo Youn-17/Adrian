@@ -198,7 +198,7 @@ const ProjectDetail: React.FC = () => {
                   <FileText className="h-4 w-4" />
                   结果查看
                 </Link>
-                <Link to="/settings" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium flex items-center gap-2">
+                <Link to="settings" className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   设置
                 </Link>

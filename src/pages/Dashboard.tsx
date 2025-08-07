@@ -101,7 +101,7 @@ const Dashboard: React.FC = () => {
                 <BarChart3 className="h-5 w-5 mr-1" />
                 结果
               </Link>
-              <Link to="/settings" className="text-gray-600 hover:text-gray-900 flex items-center">
+              <Link to="settings" className="text-gray-600 hover:text-gray-900 flex items-center">
                 <Settings className="h-5 w-5 mr-1" />
                 设置
               </Link>
