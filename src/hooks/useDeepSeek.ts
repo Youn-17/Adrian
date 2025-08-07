@@ -1,12 +1,13 @@
 import { useState, useCallback } from 'react';
 import { metaAnalysisAI, MetaAnalysisData, AnalysisResult } from '../services/metaAnalysisAI';
-import { deepSeekAPI } from '../services/deepseek';
+import { aiService } from '../services/aiService';
 
-interface UseDeepSeekReturn {
+interface UseAIReturn {
   // 状态
   isLoading: boolean;
   error: string | null;
   isConnected: boolean;
+  availablePlatforms: string[];
   
   // 方法
   checkConnection: () => Promise<boolean>;
@@ -15,12 +16,14 @@ interface UseDeepSeekReturn {
   interpretResults: (data: MetaAnalysisData) => Promise<AnalysisResult>;
   generateReport: (data: MetaAnalysisData, title: string) => Promise<string>;
   clearError: () => void;
+  hasValidApiKey: () => boolean;
 }
 
-export const useDeepSeek = (): UseDeepSeekReturn => {
+export const useAI = (): UseAIReturn => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [availablePlatforms, setAvailablePlatforms] = useState<string[]>([]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -31,18 +34,30 @@ export const useDeepSeek = (): UseDeepSeekReturn => {
     setError(null);
     
     try {
-      const connected = await deepSeekAPI.checkConnection();
-      setIsConnected(connected);
+      if (!aiService.hasValidApiKey()) {
+        setError('没有可用的AI平台API密钥，请先在设置中配置API密钥');
+        setIsConnected(false);
+        setAvailablePlatforms([]);
+        return false;
+      }
+
+      const platforms = aiService.getAvailablePlatforms();
+      setAvailablePlatforms(platforms);
       
-      if (!connected) {
-        setError('无法连接到DeepSeek API，请检查网络连接和API密钥配置');
+      const connectionResults = await aiService.checkConnection();
+      const hasConnection = connectionResults.some(result => result.connected);
+      setIsConnected(hasConnection);
+      
+      if (!hasConnection) {
+        setError('无法连接到任何AI平台，请检查网络连接和API密钥配置');
       }
       
-      return connected;
+      return hasConnection;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '连接检查失败';
       setError(errorMessage);
       setIsConnected(false);
+      setAvailablePlatforms([]);
       return false;
     } finally {
       setIsLoading(false);
@@ -113,16 +128,22 @@ export const useDeepSeek = (): UseDeepSeekReturn => {
     }
   }, []);
 
+  const hasValidApiKey = useCallback(() => {
+    return aiService.hasValidApiKey();
+  }, []);
+
   return {
     isLoading,
     error,
     isConnected,
+    availablePlatforms,
     checkConnection,
     assessDataQuality,
     recommendMethods,
     interpretResults,
     generateReport,
-    clearError
+    clearError,
+    hasValidApiKey
   };
 };
 
@@ -147,7 +168,7 @@ export const useAIConsultant = () => {
         }
       ];
       
-      const response = await deepSeekAPI.chatCompletion(messages);
+      const response = await aiService.chatCompletion(messages);
       return response.choices[0]?.message?.content || '抱歉，无法获取回答';
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'AI咨询失败';

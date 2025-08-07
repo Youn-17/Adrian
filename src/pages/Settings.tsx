@@ -14,11 +14,13 @@ import {
   Shield,
   Bell,
   HardDrive,
-  Info
+  Info,
+  Key
 } from 'lucide-react';
 import { useUserSettings, useDataManagement } from '../hooks/useLocalStorage';
 import { UserSettings } from '../types';
 import { toast } from 'sonner';
+import ApiKeyManager from '../components/ApiKeyManager';
 
 const Settings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useUserSettings();
@@ -108,6 +110,7 @@ const Settings: React.FC = () => {
 
   const tabs = [
     { id: 'general', name: '常规设置', icon: SettingsIcon },
+    { id: 'api', name: 'API配置', icon: Key },
     { id: 'appearance', name: '外观', icon: Palette },
     { id: 'data', name: '数据管理', icon: Database },
     { id: 'privacy', name: '隐私安全', icon: Shield },
@@ -265,6 +268,18 @@ const Settings: React.FC = () => {
                       </p>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'api' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg shadow-sm border p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-6">API配置</h2>
+                  <ApiKeyManager onApiKeysChange={(keys) => {
+                    // 可以在这里处理API密钥变化的回调
+                    console.log('API keys updated:', keys);
+                  }} />
                 </div>
               </div>
             )}

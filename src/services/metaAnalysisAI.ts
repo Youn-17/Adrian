@@ -1,4 +1,4 @@
-import { deepSeekAPI, ChatMessage } from './deepseek';
+import { aiService, ChatMessage } from './aiService';
 
 interface MetaAnalysisData {
   studies: Array<{
@@ -66,7 +66,7 @@ ${data.studies.map(s => `- ${s.title}: n=${s.sampleSize}`).join('\n')}
     ];
 
     try {
-      const response = await deepSeekAPI.chatCompletion(messages);
+      const response = await aiService.chatCompletion(messages);
       return response.choices[0]?.message?.content || '数据质量评估失败';
     } catch (error) {
       console.error('数据质量评估错误:', error);
@@ -107,7 +107,7 @@ ${data.studies.map(s => `- ${s.title}: n=${s.sampleSize}`).join('\n')}
     ];
 
     try {
-      const response = await deepSeekAPI.chatCompletion(messages);
+      const response = await aiService.chatCompletion(messages);
       return response.choices[0]?.message?.content || '统计方法推荐失败';
     } catch (error) {
       console.error('统计方法推荐错误:', error);
@@ -151,7 +151,7 @@ ${data.studies.map(s => `- ${s.title}: n=${s.sampleSize}`).join('\n')}
     ];
 
     try {
-      const response = await deepSeekAPI.chatCompletion(messages);
+      const response = await aiService.chatCompletion(messages);
       const content = response.choices[0]?.message?.content || '';
       
       // 解析AI回复，提取不同部分
@@ -206,7 +206,7 @@ ${data.studies.map(s => `- ${s.title}: n=${s.sampleSize}`).join('\n')}
     ];
 
     try {
-      const response = await deepSeekAPI.chatCompletion(messages);
+      const response = await aiService.chatCompletion(messages);
       return response.choices[0]?.message?.content || '学术报告生成失败';
     } catch (error) {
       console.error('学术报告生成错误:', error);

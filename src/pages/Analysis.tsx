@@ -15,7 +15,7 @@ import {
   Database
 } from 'lucide-react';
 import { useDatasets, useAnalyses } from '../hooks/useLocalStorage';
-import { useDeepSeek } from '../hooks/useDeepSeek';
+import { useAI } from '../hooks/useDeepSeek';
 import { toast } from 'sonner';
 
 interface AnalysisConfig {
@@ -34,8 +34,9 @@ const Analysis: React.FC = () => {
   const { 
     assessDataQuality, 
     interpretResults,
-    isLoading: aiLoading 
-  } = useDeepSeek();
+    isLoading: aiLoading,
+    hasValidApiKey
+  } = useAI();
   
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [analysisConfig, setAnalysisConfig] = useState<AnalysisConfig>({
@@ -51,6 +52,12 @@ const Analysis: React.FC = () => {
   const [qualityAssessment, setQualityAssessment] = useState<any>(null);
   const [methodRecommendations, setMethodRecommendations] = useState<any>(null);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [hasApiKey, setHasApiKey] = useState(false);
+
+  // 检查API密钥状态
+  useEffect(() => {
+    setHasApiKey(hasValidApiKey());
+  }, [hasValidApiKey]);
 
   useEffect(() => {
     if (id) {
@@ -303,6 +310,28 @@ const Analysis: React.FC = () => {
           </div>
         </div>
 
+        {/* API密钥检查 */}
+        {!hasApiKey && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
+            <div className="flex items-center">
+              <AlertCircle className="h-6 w-6 text-yellow-600 mr-3" />
+              <div>
+                <h3 className="text-lg font-medium text-yellow-800">需要配置AI API密钥</h3>
+                <p className="text-yellow-700 mt-1">
+                  请先在设置中配置AI平台的API密钥，才能使用AI分析功能。
+                </p>
+                <Link 
+                  to="/settings" 
+                  className="inline-flex items-center mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  前往设置
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 设置步骤 */}
         {analysisStep === 'setup' && (
           <div className="space-y-6">
@@ -421,7 +450,7 @@ const Analysis: React.FC = () => {
             <div className="flex justify-center">
               <button
                 onClick={startQualityAssessment}
-                disabled={selectedDatasets.length === 0 || aiLoading}
+                disabled={selectedDatasets.length === 0 || aiLoading || !hasApiKey}
                 className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
               >
                 {aiLoading ? (
