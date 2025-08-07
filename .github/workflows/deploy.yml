@@ -9,6 +9,10 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     
     steps:
     - name: 检出代码
@@ -30,7 +34,7 @@ jobs:
         VITE_DEEPSEEK_BASE_URL: ${{ secrets.VITE_DEEPSEEK_BASE_URL }}
         
     - name: 部署到 GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
+      uses: peaceiris/actions-gh-pages@v4
       if: github.ref == 'refs/heads/main'
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
