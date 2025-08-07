@@ -1,147 +1,74 @@
 import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
-import Login from './pages/Login'
-import Register from './pages/Register'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import CreateProject from './pages/CreateProject'
 import ProjectDetail from './pages/ProjectDetail'
+import DataUpload from './pages/DataUpload'
+import Analysis from './pages/Analysis'
+import Results from './pages/Results'
+import Settings from './pages/Settings'
+import NotFound from './pages/NotFound'
 import { Toaster } from 'sonner'
 
-// Protected Route Component
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  return <>{children}</>
-}
-
-// Public Route Component (redirect to dashboard if already logged in)
-const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (user) {
-    return <Navigate to="/dashboard" replace />
-  }
-
-  return <>{children}</>
-}
+// 加载组件
+const LoadingSpinner: React.FC = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+      <p className="text-gray-600">加载中...</p>
+    </div>
+  </div>
+)
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            {/* Public Routes */}
-            <Route 
-              path="/login" 
-              element={
-                <PublicRoute>
-                  <Login />
-                </PublicRoute>
-              } 
-            />
-            <Route 
-              path="/register" 
-              element={
-                <PublicRoute>
-                  <Register />
-                </PublicRoute>
-              } 
-            />
-            
-            {/* Protected Routes */}
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/projects/new" 
-              element={
-                <ProtectedRoute>
-                  <CreateProject />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/projects/:id" 
-              element={
-                <ProtectedRoute>
-                  <ProjectDetail />
-                </ProtectedRoute>
-              } 
-            />
-            
-            {/* Default redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 404 Page */}
-            <Route 
-              path="*" 
-              element={
-                <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                  <div className="text-center">
-                    <h1 className="text-6xl font-bold text-gray-400 mb-4">404</h1>
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-2">页面未找到</h2>
-                    <p className="text-gray-600 mb-6">抱歉，您访问的页面不存在。</p>
-                    <a 
-                      href="/dashboard" 
-                      className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      返回仪表板
-                    </a>
-                  </div>
-                </div>
-              } 
-            />
-          </Routes>
+    <Router>
+      <div className="App">
+        <Routes>
+          {/* 主页 */}
+          <Route path="/" element={<Home />} />
           
-          {/* Toast Notifications */}
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#fff',
-                color: '#374151',
-                border: '1px solid #e5e7eb',
-                borderRadius: '0.5rem',
-              },
-            }}
-          />
-        </div>
-      </Router>
-    </AuthProvider>
+          {/* 仪表板 */}
+          <Route path="/dashboard" element={<Dashboard />} />
+          
+          {/* 项目管理 */}
+          <Route path="/projects/new" element={<CreateProject />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
+          
+          {/* 数据上传 */}
+          <Route path="/upload" element={<DataUpload />} />
+          
+          {/* 分析页面 */}
+          <Route path="/analysis" element={<Analysis />} />
+          <Route path="/analysis/:id" element={<Analysis />} />
+          
+          {/* 结果页面 */}
+          <Route path="/results" element={<Results />} />
+          <Route path="/results/:id" element={<Results />} />
+          
+          {/* 设置页面 */}
+          <Route path="/settings" element={<Settings />} />
+          
+          {/* 404页面 */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        
+        {/* Toast通知 */}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#fff',
+              color: '#374151',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.5rem',
+            },
+          }}
+        />
+      </div>
+    </Router>
   )
 }
 

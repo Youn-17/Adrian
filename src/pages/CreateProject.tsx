@@ -1,24 +1,26 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { projectsApi } from '../utils/api'
-import { ArrowLeft, Save, X } from 'lucide-react'
+import { useProjects } from '../hooks/useLocalStorage'
+import { ArrowLeft, Save, X, FolderOpen } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface ProjectFormData {
-  title: string
+  name: string
   description: string
-  research_question: string
-  inclusion_criteria: string
-  exclusion_criteria: string
+  researchQuestion: string
+  inclusionCriteria: string
+  exclusionCriteria: string
 }
 
 const CreateProject: React.FC = () => {
   const navigate = useNavigate()
+  const { createProject } = useProjects()
   const [formData, setFormData] = useState<ProjectFormData>({
-    title: '',
+    name: '',
     description: '',
-    research_question: '',
-    inclusion_criteria: '',
-    exclusion_criteria: ''
+    researchQuestion: '',
+    inclusionCriteria: '',
+    exclusionCriteria: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,12 +36,12 @@ const CreateProject: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.title.trim()) {
-      setError('项目标题不能为空')
+    if (!formData.name.trim()) {
+      setError('项目名称不能为空')
       return
     }
 
-    if (!formData.research_question.trim()) {
+    if (!formData.researchQuestion.trim()) {
       setError('研究问题不能为空')
       return
     }
@@ -48,15 +50,20 @@ const CreateProject: React.FC = () => {
       setLoading(true)
       setError('')
       
-      const response = await projectsApi.create(formData)
+      const project = await createProject({
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        researchQuestion: formData.researchQuestion.trim(),
+        inclusionCriteria: formData.inclusionCriteria.trim(),
+        exclusionCriteria: formData.exclusionCriteria.trim(),
+        status: 'draft'
+      })
       
-      if (response.success) {
-        navigate(`/projects/${response.project.id}`)
-      } else {
-        setError(response.error || '创建项目失败')
-      }
+      toast.success('项目创建成功！')
+      navigate(`/project/${project.id}`)
     } catch (err) {
       setError('创建项目时发生错误')
+      toast.error('创建项目失败')
     } finally {
       setLoading(false)
     }
@@ -100,19 +107,19 @@ const CreateProject: React.FC = () => {
 
         <div className="bg-white rounded-lg shadow">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* 项目标题 */}
+            {/* 项目名称 */}
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                项目标题 <span className="text-red-500">*</span>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                项目名称 <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                id="title"
-                name="title"
-                value={formData.title}
+                id="name"
+                name="name"
+                value={formData.name}
                 onChange={handleInputChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="输入项目标题"
+                placeholder="输入项目名称"
                 required
               />
             </div>
@@ -129,23 +136,23 @@ const CreateProject: React.FC = () => {
                 onChange={handleInputChange}
                 rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="描述您的Meta分析项目的背景、目标和意义"
+                placeholder="描述您的元分析项目的背景、目标和意义"
               />
             </div>
 
             {/* 研究问题 */}
             <div>
-              <label htmlFor="research_question" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="researchQuestion" className="block text-sm font-medium text-gray-700 mb-2">
                 研究问题 <span className="text-red-500">*</span>
               </label>
               <textarea
-                id="research_question"
-                name="research_question"
-                value={formData.research_question}
+                id="researchQuestion"
+                name="researchQuestion"
+                value={formData.researchQuestion}
                 onChange={handleInputChange}
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                placeholder="明确描述您要通过Meta分析回答的研究问题"
+                placeholder="明确描述您要通过元分析回答的研究问题"
                 required
               />
             </div>
@@ -153,29 +160,29 @@ const CreateProject: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 纳入标准 */}
               <div>
-                <label htmlFor="inclusion_criteria" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="inclusionCriteria" className="block text-sm font-medium text-gray-700 mb-2">
                   纳入标准
                 </label>
                 <textarea
-                  id="inclusion_criteria"
-                  name="inclusion_criteria"
-                  value={formData.inclusion_criteria}
+                  id="inclusionCriteria"
+                  name="inclusionCriteria"
+                  value={formData.inclusionCriteria}
                   onChange={handleInputChange}
                   rows={6}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="定义哪些研究应该被纳入到Meta分析中，例如：&#10;• 发表时间范围&#10;• 研究设计类型&#10;• 参与者特征&#10;• 干预措施&#10;• 结果指标"
+                  placeholder="定义哪些研究应该被纳入到元分析中，例如：&#10;• 发表时间范围&#10;• 研究设计类型&#10;• 参与者特征&#10;• 干预措施&#10;• 结果指标"
                 />
               </div>
 
               {/* 排除标准 */}
               <div>
-                <label htmlFor="exclusion_criteria" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="exclusionCriteria" className="block text-sm font-medium text-gray-700 mb-2">
                   排除标准
                 </label>
                 <textarea
-                  id="exclusion_criteria"
-                  name="exclusion_criteria"
-                  value={formData.exclusion_criteria}
+                  id="exclusionCriteria"
+                  name="exclusionCriteria"
+                  value={formData.exclusionCriteria}
                   onChange={handleInputChange}
                   rows={6}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -188,9 +195,10 @@ const CreateProject: React.FC = () => {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h4 className="text-sm font-medium text-blue-900 mb-2">💡 创建提示</h4>
               <ul className="text-sm text-blue-800 space-y-1">
-                <li>• 项目创建后，您可以添加论文、上传数据集并进行Meta分析</li>
+                <li>• 项目创建后，您可以上传数据集并进行元分析</li>
                 <li>• 明确的纳入和排除标准有助于确保分析的科学性和一致性</li>
                 <li>• 您可以随时编辑项目信息和标准</li>
+                <li>• 支持上传CSV、Excel和Word文档格式的数据</li>
               </ul>
             </div>
 
@@ -206,7 +214,7 @@ const CreateProject: React.FC = () => {
               </button>
               <button
                 type="submit"
-                disabled={loading || !formData.title.trim() || !formData.research_question.trim()}
+                disabled={loading || !formData.name.trim() || !formData.researchQuestion.trim()}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
                 {loading ? (
@@ -226,8 +234,11 @@ const CreateProject: React.FC = () => {
         </div>
 
         {/* 帮助信息 */}
-        <div className="mt-8 bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Meta分析项目创建指南</h3>
+        <div className="mt-8 bg-white rounded-lg shadow-sm border p-6">
+          <div className="flex items-center mb-4">
+            <FolderOpen className="h-6 w-6 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">元分析项目创建指南</h3>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <h4 className="font-medium text-gray-900 mb-2">1. 明确研究问题</h4>
@@ -242,14 +253,14 @@ const CreateProject: React.FC = () => {
             </div>
             
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">3. 项目管理建议</h4>
+              <h4 className="font-medium text-gray-900 mb-2">3. 数据准备</h4>
               <p className="text-sm text-gray-600 mb-4">
-                建议使用描述性的项目标题，包含关键词和研究领域，便于后续管理和检索。
+                准备Web of Science导出的数据文件，或包含研究信息的Excel/Word文档。
               </p>
               
-              <h4 className="font-medium text-gray-900 mb-2">4. 后续步骤</h4>
+              <h4 className="font-medium text-gray-900 mb-2">4. AI辅助分析</h4>
               <p className="text-sm text-gray-600">
-                项目创建后，您可以开始文献检索、数据提取、质量评估和统计分析。
+                系统集成DeepSeek AI，可提供数据质量评估、统计方法推荐和结果解释。
               </p>
             </div>
           </div>

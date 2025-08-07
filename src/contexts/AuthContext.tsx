@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { User } from '../lib/supabase'
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'researcher' | 'senior_researcher' | 'admin';
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
   user: User | null
@@ -30,31 +37,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // 检查初始认证状态
+    // 检查本地存储的认证状态
     checkAuthStatus()
-
-    // 监听认证状态变化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          await fetchUserProfile(session.user.id)
-        } else {
-          setUser(null)
-        }
-        setLoading(false)
-      }
-    )
-
-    return () => {
-      subscription.unsubscribe()
-    }
   }, [])
 
   const checkAuthStatus = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        await fetchUserProfile(session.user.id)
+      const token = localStorage.getItem('token')
+      const userData = localStorage.getItem('user')
+      
+      if (token && userData) {
+        setUser(JSON.parse(userData))
       }
     } catch (error) {
       console.error('Error checking auth status:', error)
@@ -63,84 +56,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.error('Error fetching user profile:', error)
-        return
-      }
-
-      setUser(data)
-    } catch (error) {
-      console.error('Error fetching user profile:', error)
-    }
-  }
-
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // 存储JWT token
-        localStorage.setItem('token', data.token)
-        setUser(data.user)
+      // 模拟登录验证
+      if (email && password) {
+        const mockUser: User = {
+          id: '1',
+          email,
+          name: '研究员',
+          role: 'researcher',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        // 存储认证信息
+        localStorage.setItem('token', 'mock-token')
+        localStorage.setItem('user', JSON.stringify(mockUser))
+        setUser(mockUser)
         return { success: true }
       } else {
-        return { success: false, error: data.error }
+        return { success: false, error: '请输入邮箱和密码' }
       }
     } catch (error) {
       console.error('Login error:', error)
-      return { success: false, error: 'Network error occurred' }
+      return { success: false, error: '登录失败' }
     }
   }
 
   const register = async (email: string, password: string, name: string, role: string = 'researcher') => {
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password, name, role }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        // 存储JWT token
-        localStorage.setItem('token', data.token)
-        setUser(data.user)
+      // 模拟注册
+      if (email && password && name) {
+        const mockUser: User = {
+          id: Date.now().toString(),
+          email,
+          name,
+          role: role as 'researcher' | 'senior_researcher' | 'admin',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        
+        // 存储认证信息
+        localStorage.setItem('token', 'mock-token')
+        localStorage.setItem('user', JSON.stringify(mockUser))
+        setUser(mockUser)
         return { success: true }
       } else {
-        return { success: false, error: data.error }
+        return { success: false, error: '请填写所有必需字段' }
       }
     } catch (error) {
       console.error('Register error:', error)
-      return { success: false, error: 'Network error occurred' }
+      return { success: false, error: '注册失败' }
     }
   }
 
   const logout = async () => {
     try {
-      // 清除本地token
+      // 清除本地存储
       localStorage.removeItem('token')
-      
-      // 登出Supabase
-      await supabase.auth.signOut()
+      localStorage.removeItem('user')
       
       setUser(null)
     } catch (error) {
@@ -151,30 +125,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateProfile = async (data: Partial<User>) => {
     try {
       const token = localStorage.getItem('token')
-      if (!token) {
-        return { success: false, error: 'Not authenticated' }
+      if (!token || !user) {
+        return { success: false, error: '未登录' }
       }
 
-      const response = await fetch('/api/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      })
-
-      const result = await response.json()
-
-      if (result.success) {
-        setUser(result.user)
-        return { success: true }
-      } else {
-        return { success: false, error: result.error }
+      const updatedUser = {
+        ...user,
+        ...data,
+        updated_at: new Date().toISOString()
       }
+
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      setUser(updatedUser)
+      return { success: true }
     } catch (error) {
       console.error('Update profile error:', error)
-      return { success: false, error: 'Network error occurred' }
+      return { success: false, error: '更新失败' }
     }
   }
 

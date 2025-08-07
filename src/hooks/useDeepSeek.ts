@@ -1,0 +1,167 @@
+import { useState, useCallback } from 'react';
+import { metaAnalysisAI, MetaAnalysisData, AnalysisResult } from '../services/metaAnalysisAI';
+import { deepSeekAPI } from '../services/deepseek';
+
+interface UseDeepSeekReturn {
+  // 状态
+  isLoading: boolean;
+  error: string | null;
+  isConnected: boolean;
+  
+  // 方法
+  checkConnection: () => Promise<boolean>;
+  assessDataQuality: (data: MetaAnalysisData) => Promise<string>;
+  recommendMethods: (data: MetaAnalysisData) => Promise<string>;
+  interpretResults: (data: MetaAnalysisData) => Promise<AnalysisResult>;
+  generateReport: (data: MetaAnalysisData, title: string) => Promise<string>;
+  clearError: () => void;
+}
+
+export const useDeepSeek = (): UseDeepSeekReturn => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  const checkConnection = useCallback(async (): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const connected = await deepSeekAPI.checkConnection();
+      setIsConnected(connected);
+      
+      if (!connected) {
+        setError('无法连接到DeepSeek API，请检查网络连接和API密钥配置');
+      }
+      
+      return connected;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '连接检查失败';
+      setError(errorMessage);
+      setIsConnected(false);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const assessDataQuality = useCallback(async (data: MetaAnalysisData): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const assessment = await metaAnalysisAI.assessDataQuality(data);
+      return assessment;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '数据质量评估失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const recommendMethods = useCallback(async (data: MetaAnalysisData): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const recommendations = await metaAnalysisAI.recommendStatisticalMethods(data);
+      return recommendations;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '统计方法推荐失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const interpretResults = useCallback(async (data: MetaAnalysisData): Promise<AnalysisResult> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const interpretation = await metaAnalysisAI.interpretResults(data);
+      return interpretation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '结果解读失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const generateReport = useCallback(async (data: MetaAnalysisData, title: string): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const report = await metaAnalysisAI.generateAcademicReport(data, title);
+      return report;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '学术报告生成失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return {
+    isLoading,
+    error,
+    isConnected,
+    checkConnection,
+    assessDataQuality,
+    recommendMethods,
+    interpretResults,
+    generateReport,
+    clearError
+  };
+};
+
+// 简化版本的hook，用于快速AI咨询
+export const useAIConsultant = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const askQuestion = useCallback(async (question: string, context?: string): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const messages = [
+        {
+          role: 'system' as const,
+          content: '你是一位专业的元分析专家，请用中文回答用户关于元分析的问题。'
+        },
+        {
+          role: 'user' as const,
+          content: context ? `背景信息：${context}\n\n问题：${question}` : question
+        }
+      ];
+      
+      const response = await deepSeekAPI.chatCompletion(messages);
+      return response.choices[0]?.message?.content || '抱歉，无法获取回答';
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'AI咨询失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return {
+    isLoading,
+    error,
+    askQuestion,
+    clearError: () => setError(null)
+  };
+};
