@@ -46,7 +46,7 @@ const API_PLATFORMS = {
     placeholder: 'sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
     baseUrl: 'https://api.moonshot.cn/v1',
     testEndpoint: 'https://api.moonshot.cn/v1/models',
-    models: ['kimi-k2-0711-preview', 'moonshot-v1-32k', 'moonshot-v1-128k'],
+    models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k', 'kimi-k2', 'kimi-latest', 'kimi-thinking-preview'],
     icon: '🌙'
   },
   zhipu: {

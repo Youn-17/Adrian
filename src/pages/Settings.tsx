@@ -25,12 +25,29 @@ import ApiKeyManager from '../components/ApiKeyManager';
 const Settings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useUserSettings();
   const { exportData, importData, clearAllData, getStorageInfo } = useDataManagement();
-  const [localSettings, setLocalSettings] = useState<UserSettings | null>(settings);
+  const [localSettings, setLocalSettings] = useState<UserSettings>(settings || {
+    general: {
+      language: 'zh-CN',
+      autoSave: true,
+      notifications: true
+    },
+    appearance: {
+      theme: 'light',
+      fontSize: 'medium',
+      compactMode: false
+    },
+    privacy: {
+      analytics: false,
+      crashReports: true
+    }
+  });
   const [storageInfo, setStorageInfo] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('general');
 
   useEffect(() => {
-    setLocalSettings(settings);
+    if (settings) {
+      setLocalSettings(settings);
+    }
   }, [settings]);
 
   useEffect(() => {
@@ -40,10 +57,8 @@ const Settings: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      if (localSettings) {
-        await updateSettings(localSettings);
-        toast.success('设置已保存');
-      }
+      await updateSettings(localSettings);
+      toast.success('设置已保存');
     } catch (error) {
       toast.error('保存失败');
     }
