@@ -60,7 +60,7 @@ const CreateProject: React.FC = () => {
       })
       
       toast.success('项目创建成功！')
-      navigate(`/project/${project.id}`)
+      navigate(`/projects/${project.id}`)
     } catch (err) {
       setError('创建项目时发生错误')
       toast.error('创建项目失败')

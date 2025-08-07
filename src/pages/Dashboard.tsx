@@ -121,7 +121,7 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
             <Link
-              to="/create-project"
+              to="/projects/new"
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
             >
               <Plus className="h-5 w-5" />
@@ -239,7 +239,7 @@ const Dashboard: React.FC = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-2">还没有项目</h3>
               <p className="text-gray-600 mb-6">创建您的第一个元分析项目开始研究</p>
               <Link
-                to="/create-project"
+                to="/projects/new"
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
               >
                 <Plus className="h-5 w-5" />
@@ -257,7 +257,7 @@ const Dashboard: React.FC = () => {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <Link
-                            to={`/project/${project.id}`}
+                            to={`/projects/${project.id}`}
                             className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors"
                           >
                             {project.name}

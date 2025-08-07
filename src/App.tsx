@@ -23,7 +23,7 @@ const LoadingSpinner: React.FC = () => (
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <Router basename="/Adrian">
       <div className="App">
         <Routes>
           {/* 主页 */}
