@@ -5,9 +5,11 @@ import Dashboard from './pages/Dashboard'
 import CreateProject from './pages/CreateProject'
 import ProjectDetail from './pages/ProjectDetail'
 import DataUpload from './pages/DataUpload'
+import DataGuide from './pages/DataGuide'
 import Analysis from './pages/Analysis'
 import Results from './pages/Results'
 import Settings from './pages/Settings'
+import Help from './pages/Help'
 import NotFound from './pages/NotFound'
 import { Toaster } from 'sonner'
 
@@ -39,6 +41,9 @@ const App: React.FC = () => {
           {/* 数据上传 */}
           <Route path="/upload" element={<DataUpload />} />
           
+          {/* 数据准备指南 */}
+          <Route path="/data-guide" element={<DataGuide />} />
+          
           {/* 分析页面 */}
           <Route path="/analysis" element={<Analysis />} />
           <Route path="/analysis/:id" element={<Analysis />} />
@@ -49,6 +54,9 @@ const App: React.FC = () => {
           
           {/* 设置页面 */}
           <Route path="/settings" element={<Settings />} />
+          
+          {/* 帮助页面 */}
+          <Route path="/help" element={<Help />} />
           
           {/* 404页面 */}
           <Route path="*" element={<NotFound />} />

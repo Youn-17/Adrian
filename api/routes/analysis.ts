@@ -1,10 +1,11 @@
 import express from 'express'
 import { supabase } from '../lib/supabase.js'
 import { authenticateToken, AuthRequest } from '../middleware/auth.js'
+import { MetaAnalysisService } from '../services/metaAnalysisService.js'
 
 const router = express.Router()
 
-// Meta分析统计函数
+// Meta分析统计函数（保留向后兼容）
 class MetaAnalysis {
   // 计算效应量（Cohen's d）
   static calculateCohenD(mean1: number, mean2: number, sd1: number, sd2: number, n1: number, n2: number): number {
@@ -307,9 +308,42 @@ router.post('/:id/run', authenticateToken, async (req: AuthRequest, res) => {
       // 执行Meta分析
       let results: any
       if (analysis.analysis_type === 'fixed_effect') {
-        results = MetaAnalysis.fixedEffectModel(effectSizes, variances)
+        results = MetaAnalysisService.fixedEffectModel(effectSizes, variances)
       } else {
-        results = MetaAnalysis.randomEffectModel(effectSizes, variances)
+        results = MetaAnalysisService.randomEffectModel(effectSizes, variances)
+      }
+
+      // 执行附加分析
+      const standardErrors = variances.map(v => Math.sqrt(v))
+      let publicationBias = null
+      let sensitivityAnalysis = null
+      let subgroupAnalysis = null
+
+      try {
+        // 发表偏倚检验
+        if (effectSizes.length >= 10) {
+          publicationBias = await MetaAnalysisService.publicationBiasTest(effectSizes, standardErrors)
+        }
+
+        // 敏感性分析
+        if (effectSizes.length >= 3) {
+          sensitivityAnalysis = MetaAnalysisService.sensitivityAnalysis(effectSizes, variances)
+        }
+
+        // 亚组分析（如果有分组变量）
+        const groupVariable = analysis.parameters?.subgroup_variable
+        if (groupVariable && validData.some(row => row[groupVariable])) {
+          const studiesWithGroup = validData.map((row, index) => ({
+            id: `study_${index + 1}`,
+            name: studyColumn ? row[studyColumn] : `Study ${index + 1}`,
+            effectSize: effectSizes[index],
+            variance: variances[index],
+            [groupVariable]: row[groupVariable]
+          }))
+          subgroupAnalysis = MetaAnalysisService.subgroupAnalysis(studiesWithGroup, groupVariable)
+        }
+      } catch (analysisError) {
+        console.warn('Additional analysis failed:', analysisError)
       }
 
       // 准备研究信息
@@ -334,11 +368,17 @@ router.post('/:id/run', authenticateToken, async (req: AuthRequest, res) => {
           data: {
             ...results,
             studies,
+            publicationBias,
+            sensitivityAnalysis,
+            subgroupAnalysis,
             summary: {
               totalStudies: validData.length,
               analysisType: analysis.analysis_type,
               effectSizeColumn,
-              varianceColumn
+              varianceColumn,
+              hasPublicationBiasTest: publicationBias !== null,
+              hasSensitivityAnalysis: sensitivityAnalysis !== null,
+              hasSubgroupAnalysis: subgroupAnalysis !== null
             }
           }
         })
@@ -569,6 +609,290 @@ router.delete('/:id', authenticateToken, async (req: AuthRequest, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Internal server error' 
+    })
+  }
+})
+
+// 发表偏倚检验
+router.post('/:id/publication-bias', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // 验证分析所有权
+    const { data: analysis } = await supabase
+      .from('analyses')
+      .select(`
+        *,
+        projects!inner(user_id)
+      `)
+      .eq('id', id)
+      .eq('projects.user_id', req.user!.id)
+      .single()
+
+    if (!analysis) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Analysis not found' 
+      })
+    }
+
+    // 获取最新结果
+    const { data: result } = await supabase
+      .from('results')
+      .select('data')
+      .eq('analysis_id', id)
+      .eq('result_type', 'meta_analysis')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!result || !result.data.studies) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No analysis results found' 
+      })
+    }
+
+    const studies = result.data.studies
+    if (studies.length < 10) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least 10 studies required for publication bias test' 
+      })
+    }
+
+    const effectSizes = studies.map((s: any) => s.effectSize)
+    const standardErrors = studies.map((s: any) => Math.sqrt(s.variance))
+
+    const biasResult = await MetaAnalysisService.publicationBiasTest(effectSizes, standardErrors)
+
+    res.json({
+      success: true,
+      publicationBias: biasResult
+    })
+  } catch (error) {
+    console.error('Publication bias test error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    })
+  }
+})
+
+// 亚组分析
+router.post('/:id/subgroup', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { groupVariable } = req.body
+
+    if (!groupVariable) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Group variable is required' 
+      })
+    }
+
+    // 验证分析所有权
+    const { data: analysis } = await supabase
+      .from('analyses')
+      .select(`
+        *,
+        projects!inner(user_id)
+      `)
+      .eq('id', id)
+      .eq('projects.user_id', req.user!.id)
+      .single()
+
+    if (!analysis) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Analysis not found' 
+      })
+    }
+
+    // 获取原始数据
+    const { data: datasets } = await supabase
+      .from('datasets')
+      .select('data')
+      .in('id', analysis.dataset_ids || [])
+      .eq('status', 'processed')
+
+    if (!datasets || datasets.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No datasets found' 
+      })
+    }
+
+    // 合并数据
+    let allData: any[] = []
+    for (const dataset of datasets) {
+      if (dataset.data && Array.isArray(dataset.data)) {
+        allData = allData.concat(dataset.data)
+      }
+    }
+
+    const parameters = analysis.parameters || {}
+    const effectSizeColumn = parameters.effect_size_column
+    const varianceColumn = parameters.variance_column
+    const studyColumn = parameters.study_column
+
+    // 准备亚组分析数据
+    const validData = allData.filter(row => {
+      const effectSize = parseFloat(row[effectSizeColumn])
+      const hasGroupValue = row[groupVariable] !== undefined && row[groupVariable] !== null
+      return !isNaN(effectSize) && hasGroupValue
+    })
+
+    if (validData.length < 4) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least 4 studies with group variable are required' 
+      })
+    }
+
+    const studiesWithGroup = validData.map((row, index) => ({
+      id: `study_${index + 1}`,
+      name: studyColumn ? row[studyColumn] : `Study ${index + 1}`,
+      effectSize: parseFloat(row[effectSizeColumn]),
+      variance: varianceColumn ? parseFloat(row[varianceColumn]) : 0.1,
+      [groupVariable]: row[groupVariable]
+    }))
+
+    const subgroupResult = MetaAnalysisService.subgroupAnalysis(studiesWithGroup, groupVariable)
+
+    res.json({
+      success: true,
+      subgroupAnalysis: subgroupResult
+    })
+  } catch (error) {
+    console.error('Subgroup analysis error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    })
+  }
+})
+
+// 敏感性分析
+router.post('/:id/sensitivity', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+
+    // 验证分析所有权
+    const { data: analysis } = await supabase
+      .from('analyses')
+      .select(`
+        *,
+        projects!inner(user_id)
+      `)
+      .eq('id', id)
+      .eq('projects.user_id', req.user!.id)
+      .single()
+
+    if (!analysis) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Analysis not found' 
+      })
+    }
+
+    // 获取最新结果
+    const { data: result } = await supabase
+      .from('results')
+      .select('data')
+      .eq('analysis_id', id)
+      .eq('result_type', 'meta_analysis')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!result || !result.data.studies) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No analysis results found' 
+      })
+    }
+
+    const studies = result.data.studies
+    if (studies.length < 3) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'At least 3 studies required for sensitivity analysis' 
+      })
+    }
+
+    const effectSizes = studies.map((s: any) => s.effectSize)
+    const variances = studies.map((s: any) => s.variance)
+
+    const sensitivityResult = MetaAnalysisService.sensitivityAnalysis(effectSizes, variances)
+
+    res.json({
+      success: true,
+      sensitivityAnalysis: sensitivityResult
+    })
+  } catch (error) {
+    console.error('Sensitivity analysis error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    })
+  }
+})
+
+// Python高级分析
+router.post('/:id/python-analysis', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params
+    const { analysisType = 'random_effect' } = req.body
+
+    // 验证分析所有权
+    const { data: analysis } = await supabase
+      .from('analyses')
+      .select(`
+        *,
+        projects!inner(user_id)
+      `)
+      .eq('id', id)
+      .eq('projects.user_id', req.user!.id)
+      .single()
+
+    if (!analysis) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Analysis not found' 
+      })
+    }
+
+    // 获取最新结果
+    const { data: result } = await supabase
+      .from('results')
+      .select('data')
+      .eq('analysis_id', id)
+      .eq('result_type', 'meta_analysis')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!result || !result.data.studies) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No analysis results found' 
+      })
+    }
+
+    const studies = result.data.studies
+    const pythonResult = await MetaAnalysisService.runPythonAnalysis(studies, analysisType)
+
+    res.json({
+      success: true,
+      pythonAnalysis: pythonResult
+    })
+  } catch (error) {
+    console.error('Python analysis error:', error)
+    res.status(500).json({ 
+      success: false, 
+      error: `Python analysis failed: ${error.message}` 
     })
   }
 })

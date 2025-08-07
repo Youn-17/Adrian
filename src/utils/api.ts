@@ -214,6 +214,28 @@ export const analysisApi = {
     method: 'POST',
   }),
   
+  // 发表偏倚检验
+  publicationBias: (id: string) => apiRequest(`/analysis/${id}/publication-bias`, {
+    method: 'POST',
+  }),
+  
+  // 亚组分析
+  subgroupAnalysis: (id: string, groupVariable: string) => apiRequest(`/analysis/${id}/subgroup`, {
+    method: 'POST',
+    body: JSON.stringify({ groupVariable }),
+  }),
+  
+  // 敏感性分析
+  sensitivityAnalysis: (id: string) => apiRequest(`/analysis/${id}/sensitivity`, {
+    method: 'POST',
+  }),
+  
+  // Python高级分析
+  pythonAnalysis: (id: string, analysisType: string = 'random_effect') => apiRequest(`/analysis/${id}/python-analysis`, {
+    method: 'POST',
+    body: JSON.stringify({ analysisType }),
+  }),
+  
   // 获取项目的分析
   getByProject: (projectId: string) => apiRequest(`/analysis/project/${projectId}`),
   
@@ -226,6 +248,63 @@ export const analysisApi = {
   // 删除分析
   delete: (id: string) => apiRequest(`/analysis/${id}`, {
     method: 'DELETE',
+  }),
+}
+
+// 数据分析相关API
+export const dataAnalysisApi = {
+  // 分析数据结构
+  analyzeStructure: (formData: FormData) => {
+    const token = localStorage.getItem('token')
+    return fetch(`${API_BASE_URL}/data-analysis/analyze-structure`, {
+      method: 'POST',
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: formData,
+    }).then(response => {
+      if (!response.ok) {
+        return response.json().then(errorData => {
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+        })
+      }
+      return response.json()
+    })
+  },
+  
+  // 验证字段映射
+  validateMapping: (data: {
+    data: any[]
+    fieldMapping: {
+      effectSize?: string
+      variance?: string
+      sampleSize?: string
+      studyName?: string
+      groupVariable?: string
+    }
+  }) => apiRequest('/data-analysis/validate-mapping', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }),
+  
+  // 数据预处理
+  preprocess: (data: {
+    data: any[]
+    fieldMapping: {
+      effectSize?: string
+      variance?: string
+      sampleSize?: string
+      studyName?: string
+      groupVariable?: string
+    }
+    preprocessingOptions?: {
+      handleMissingValues?: boolean
+      handleOutliers?: boolean
+      calculateVariance?: boolean
+    }
+  }) => apiRequest('/data-analysis/preprocess', {
+    method: 'POST',
+    body: JSON.stringify(data),
   }),
 }
 
@@ -251,5 +330,6 @@ export default {
   papersApi,
   datasetsApi,
   analysisApi,
+  dataAnalysisApi,
   usersApi,
 }

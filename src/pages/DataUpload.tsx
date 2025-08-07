@@ -10,11 +10,15 @@ import {
   Download,
   ArrowLeft,
   Brain,
-  BarChart3
+  BarChart3,
+  Info,
+  ArrowRight,
+  Settings
 } from 'lucide-react';
 import { useFileProcessor } from '../hooks/useFileProcessor';
 import { useDatasets } from '../hooks/useLocalStorage';
 import { toast } from 'sonner';
+import DataPreprocessor from '../components/DataPreprocessor';
 
 const DataUpload: React.FC = () => {
   const { processFiles, isProcessing, error, clearError } = useFileProcessor();
@@ -22,7 +26,9 @@ const DataUpload: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [processedData, setProcessedData] = useState<any[]>([]);
-  const [currentStep, setCurrentStep] = useState<'upload' | 'preview' | 'save'>('upload');
+  const [currentStep, setCurrentStep] = useState<'upload' | 'preview' | 'preprocess' | 'save'>('upload');
+  const [showPreprocessor, setShowPreprocessor] = useState(false);
+  const [selectedDataIndex, setSelectedDataIndex] = useState<number>(0);
 
   const supportedFormats = [
     {
@@ -42,6 +48,12 @@ const DataUpload: React.FC = () => {
       description: 'Word文档文件 (.docx)',
       icon: <FileText className="h-6 w-6 text-orange-600" />,
       extensions: '.docx'
+    },
+    {
+      type: 'TXT',
+      description: '纯文本文件，包含研究数据或文献内容',
+      icon: <FileText className="h-6 w-6 text-purple-600" />,
+      extensions: '.txt'
     }
   ];
 
@@ -75,11 +87,12 @@ const DataUpload: React.FC = () => {
       return extension.endsWith('.csv') || 
              extension.endsWith('.xlsx') || 
              extension.endsWith('.xls') || 
-             extension.endsWith('.docx');
+             extension.endsWith('.docx') ||
+             extension.endsWith('.txt');
     });
 
     if (validFiles.length === 0) {
-      toast.error('请上传支持的文件格式：CSV、Excel或Word文档');
+      toast.error('请上传支持的文件格式：CSV、Excel、Word文档或TXT文件');
       return;
     }
 
@@ -115,7 +128,7 @@ const DataUpload: React.FC = () => {
           name: file.name.replace(/\.[^/.]+$/, ''),
           description: `从 ${file.name} 导入的数据`,
           fileName: file.name,
-          fileType: (file.name.split('.').pop()?.toLowerCase() || 'unknown') as 'csv' | 'excel' | 'word' | 'xlsx' | 'xls' | 'docx' | 'unknown',
+          fileType: (file.name.split('.').pop()?.toLowerCase() || 'unknown') as 'csv' | 'excel' | 'word' | 'xlsx' | 'xls' | 'docx' | 'txt' | 'unknown',
           fileSize: file.size,
           rowCount: data.data?.length || 0,
           columnCount: data.data?.[0] ? Object.keys(data.data[0]).length : 0,
@@ -139,7 +152,25 @@ const DataUpload: React.FC = () => {
     setUploadedFiles([]);
     setProcessedData([]);
     setCurrentStep('upload');
+    setShowPreprocessor(false);
     clearError();
+  };
+
+  const handlePreprocessedData = (preprocessedData: any[], metadata: any) => {
+    // 更新处理后的数据
+    const updatedProcessedData = [...processedData];
+    updatedProcessedData[selectedDataIndex] = {
+      ...updatedProcessedData[selectedDataIndex],
+      data: preprocessedData,
+      metadata: {
+        ...updatedProcessedData[selectedDataIndex].metadata,
+        preprocessing: metadata
+      }
+    };
+    setProcessedData(updatedProcessedData);
+    setShowPreprocessor(false);
+    setCurrentStep('preprocess');
+    toast.success('数据预处理完成！');
   };
 
   return (
@@ -195,15 +226,30 @@ const DataUpload: React.FC = () => {
             }`}></div>
             <div className={`flex items-center ${
               currentStep === 'preview' ? 'text-blue-600' : 
-              currentStep === 'save' ? 'text-green-600' : 'text-gray-400'
+              ['preprocess', 'save'].includes(currentStep) ? 'text-green-600' : 'text-gray-400'
             }`}>
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 currentStep === 'preview' ? 'bg-blue-600 text-white' : 
-                currentStep === 'save' ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
+                ['preprocess', 'save'].includes(currentStep) ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
               }`}>
                 2
               </div>
               <span className="ml-2 font-medium">预览数据</span>
+            </div>
+            <div className={`w-16 h-1 ${
+              ['preprocess', 'save'].includes(currentStep) ? 'bg-green-600' : 'bg-gray-300'
+            }`}></div>
+            <div className={`flex items-center ${
+              currentStep === 'preprocess' ? 'text-blue-600' : 
+              currentStep === 'save' ? 'text-green-600' : 'text-gray-400'
+            }`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                currentStep === 'preprocess' ? 'bg-blue-600 text-white' : 
+                currentStep === 'save' ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
+              }`}>
+                3
+              </div>
+              <span className="ml-2 font-medium">数据预处理</span>
             </div>
             <div className={`w-16 h-1 ${
               currentStep === 'save' ? 'bg-green-600' : 'bg-gray-300'
@@ -214,7 +260,7 @@ const DataUpload: React.FC = () => {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                 currentStep === 'save' ? 'bg-green-600 text-white' : 'bg-gray-300 text-gray-600'
               }`}>
-                3
+                4
               </div>
               <span className="ml-2 font-medium">保存数据</span>
             </div>
@@ -224,6 +270,26 @@ const DataUpload: React.FC = () => {
         {/* 上传步骤 */}
         {currentStep === 'upload' && (
           <div className="space-y-8">
+            {/* 数据准备提示 */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Info className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="text-blue-900 font-medium">需要帮助准备数据？</span>
+                </div>
+                <Link 
+                  to="/data-guide" 
+                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center"
+                >
+                  查看数据准备指南
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Link>
+              </div>
+              <p className="text-blue-800 text-sm mt-2">
+                查看详细的数据格式要求、示例文件和准备指导
+              </p>
+            </div>
+            
             {/* 支持格式说明 */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">支持的文件格式</h2>
@@ -259,12 +325,12 @@ const DataUpload: React.FC = () => {
                   拖拽文件到此处或点击上传
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  支持 CSV、Excel (.xlsx, .xls) 和 Word (.docx) 文件
+                  支持 CSV、Excel (.xlsx, .xls)、Word (.docx) 和 TXT 文件
                 </p>
                 <input
                   type="file"
                   multiple
-                  accept=".csv,.xlsx,.xls,.docx"
+                  accept=".csv,.xlsx,.xls,.docx,.txt"
                   onChange={handleFileInput}
                   className="hidden"
                   id="file-upload"
@@ -353,6 +419,16 @@ const DataUpload: React.FC = () => {
                     className="text-gray-600 hover:text-gray-800 px-4 py-2 border border-gray-300 rounded-lg"
                   >
                     重新上传
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedDataIndex(0);
+                      setShowPreprocessor(true);
+                    }}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <Settings className="h-5 w-5 mr-2" />
+                    数据预处理
                   </button>
                   <button
                     onClick={saveDatasets}
@@ -466,6 +542,16 @@ const DataUpload: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* 数据预处理组件 */}
+      {showPreprocessor && processedData[selectedDataIndex] && (
+        <DataPreprocessor
+          data={processedData[selectedDataIndex].data || []}
+          fileName={uploadedFiles[selectedDataIndex]?.name || 'unknown'}
+          onDataProcessed={handlePreprocessedData}
+          onClose={() => setShowPreprocessor(false)}
+        />
+      )}
     </div>
   );
 };

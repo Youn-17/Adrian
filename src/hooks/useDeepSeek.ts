@@ -14,6 +14,10 @@ interface UseAIReturn {
   assessDataQuality: (data: MetaAnalysisData) => Promise<string>;
   recommendMethods: (data: MetaAnalysisData) => Promise<string>;
   interpretResults: (data: MetaAnalysisData) => Promise<AnalysisResult>;
+  interpretPublicationBias: (biasResults: any) => Promise<string>;
+  interpretSubgroupAnalysis: (subgroupResults: any) => Promise<string>;
+  interpretSensitivityAnalysis: (sensitivityResults: any[]) => Promise<string>;
+  interpretComprehensiveResults: (analysisResults: any) => Promise<AnalysisResult>;
   generateReport: (data: MetaAnalysisData, title: string) => Promise<string>;
   clearError: () => void;
   hasValidApiKey: () => boolean;
@@ -128,6 +132,70 @@ export const useAI = (): UseAIReturn => {
     }
   }, []);
 
+  const interpretPublicationBias = useCallback(async (biasResults: any): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const interpretation = await metaAnalysisAI.interpretPublicationBias(biasResults);
+      return interpretation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '发表偏倚解读失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const interpretSubgroupAnalysis = useCallback(async (subgroupResults: any): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const interpretation = await metaAnalysisAI.interpretSubgroupAnalysis(subgroupResults);
+      return interpretation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '亚组分析解读失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const interpretSensitivityAnalysis = useCallback(async (sensitivityResults: any[]): Promise<string> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const interpretation = await metaAnalysisAI.interpretSensitivityAnalysis(sensitivityResults);
+      return interpretation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '敏感性分析解读失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const interpretComprehensiveResults = useCallback(async (analysisResults: any): Promise<AnalysisResult> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const interpretation = await metaAnalysisAI.interpretComprehensiveResults(analysisResults);
+      return interpretation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '综合结果解读失败';
+      setError(errorMessage);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const hasValidApiKey = useCallback(() => {
     return aiService.hasValidApiKey();
   }, []);
@@ -141,6 +209,10 @@ export const useAI = (): UseAIReturn => {
     assessDataQuality,
     recommendMethods,
     interpretResults,
+    interpretPublicationBias,
+    interpretSubgroupAnalysis,
+    interpretSensitivityAnalysis,
+    interpretComprehensiveResults,
     generateReport,
     clearError,
     hasValidApiKey

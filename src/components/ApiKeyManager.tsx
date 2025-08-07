@@ -160,6 +160,10 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeysChange }) => {
       return isValid;
     } catch (error) {
       console.error(`Failed to validate ${platform} API key:`, error);
+      // 如果是网络错误，给用户更友好的提示
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        toast.error('网络连接失败，请检查网络设置或稍后重试');
+      }
       return false;
     } finally {
       setValidatingKeys(prev => ({ ...prev, [platform]: false }));
@@ -173,10 +177,12 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeysChange }) => {
         headers: {
           'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors'
       });
       return response.ok;
-    } catch {
+    } catch (error) {
+      console.error('DeepSeek API validation error:', error);
       return false;
     }
   };
@@ -235,10 +241,12 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onApiKeysChange }) => {
         headers: {
           'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json'
-        }
+        },
+        mode: 'cors'
       });
       return response.ok;
-    } catch {
+    } catch (error) {
+      console.error('Kimi API validation error:', error);
       return false;
     }
   };

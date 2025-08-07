@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API设置测试</title>
+</head>
+<body>
+    <h1>API设置测试页面</h1>
+    <p>请在浏览器中访问 <a href="http://localhost:3000/Adrian/settings" target="_blank">http://localhost:3000/Adrian/settings</a></p>
+    <p>然后点击"API配置"标签页，检查以下功能：</p>
+    <ul>
+        <li>是否能看到API平台选择界面</li>
+        <li>是否能选择DeepSeek、Kimi等平台</li>
+        <li>是否能输入API密钥</li>
+        <li>是否能验证API密钥</li>
+        <li>是否能保存API密钥</li>
+    </ul>
+    
+    <h2>常见问题排查：</h2>
+    <ol>
+        <li>检查浏览器控制台是否有错误信息</li>
+        <li>检查网络连接是否正常</li>
+        <li>检查API密钥格式是否正确</li>
+        <li>检查本地存储是否被清除</li>
+    </ol>
+    
+    <script>
+        // 检查本地存储中的API密钥
+        console.log('当前保存的API密钥:', localStorage.getItem('api_keys'));
+        
+        // 测试API密钥保存功能
+        function testApiKeySave() {
+            const testKey = {
+                deepseek: {
+                    platform: 'deepseek',
+                    key: 'test-key-123',
+                    isValid: false,
+                    lastValidated: new Date().toISOString()
+                }
+            };
+            localStorage.setItem('api_keys', JSON.stringify(testKey));
+            console.log('测试API密钥已保存');
+        }
+        
+        // 清除API密钥
+        function clearApiKeys() {
+            localStorage.removeItem('api_keys');
+            console.log('API密钥已清除');
+        }
+        
+        console.log('API设置测试工具已加载');
+        console.log('可用函数: testApiKeySave(), clearApiKeys()');
+    </script>
+</body>
+</html>

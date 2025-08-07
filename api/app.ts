@@ -12,6 +12,7 @@ import projectRoutes from './routes/projects.ts';
 import paperRoutes from './routes/papers.ts';
 import uploadRoutes from './routes/uploads.ts';
 import analysisRoutes from './routes/analysis.ts';
+import dataAnalysisRoutes from './routes/dataAnalysis.ts';
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url);
@@ -35,6 +36,7 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/papers', paperRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/analysis', analysisRoutes);
+app.use('/api/data-analysis', dataAnalysisRoutes);
 
 /**
  * Serve static files in production

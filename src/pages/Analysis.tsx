@@ -19,12 +19,16 @@ import { useAI } from '../hooks/useDeepSeek';
 import { toast } from 'sonner';
 
 interface AnalysisConfig {
-  confidenceLevel: number;
-  statisticalModel: 'fixed_effects' | 'random_effects';
-  heterogeneityTest: boolean;
-  publicationBias: boolean;
-  subgroupAnalysis: boolean;
-  sensitivityAnalysis: boolean;
+  confidenceLevel: number
+  statisticalModel: 'fixed_effects' | 'random_effects'
+  heterogeneityTest: boolean
+  publicationBias: boolean
+  subgroupAnalysis: boolean
+  sensitivityAnalysis: boolean
+  subgroupVariable?: string
+  pythonAnalysis: boolean
+  forestPlot: boolean
+  funnelPlot: boolean
 }
 
 const Analysis: React.FC = () => {
@@ -34,24 +38,38 @@ const Analysis: React.FC = () => {
   const { 
     assessDataQuality, 
     interpretResults,
+    interpretPublicationBias,
+    interpretSubgroupAnalysis,
+    interpretSensitivityAnalysis,
+    interpretComprehensiveResults,
     isLoading: aiLoading,
     hasValidApiKey
   } = useAI();
   
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [analysisConfig, setAnalysisConfig] = useState<AnalysisConfig>({
-    confidenceLevel: 0.95,
+    confidenceLevel: 95,
     statisticalModel: 'random_effects',
     heterogeneityTest: true,
     publicationBias: true,
     subgroupAnalysis: false,
-    sensitivityAnalysis: false
+    sensitivityAnalysis: true,
+    subgroupVariable: '',
+    pythonAnalysis: false,
+    forestPlot: true,
+    funnelPlot: true
   });
   const [currentAnalysis, setCurrentAnalysis] = useState<any>(null);
   const [analysisStep, setAnalysisStep] = useState<'setup' | 'quality' | 'methods' | 'running' | 'results'>('setup');
   const [qualityAssessment, setQualityAssessment] = useState<any>(null);
   const [methodRecommendations, setMethodRecommendations] = useState<any>(null);
   const [analysisResults, setAnalysisResults] = useState<any>(null);
+  const [aiInterpretations, setAiInterpretations] = useState<{
+    comprehensive?: any;
+    publicationBias?: string;
+    subgroupAnalysis?: string;
+    sensitivityAnalysis?: string;
+  }>({});
   const [hasApiKey, setHasApiKey] = useState(false);
 
   // 检查API密钥状态
@@ -189,11 +207,58 @@ const Analysis: React.FC = () => {
         },
         publicationBias: {
           eggerTest: {
+            intercept: 0.12,
             pValue: 0.15,
+            significant: false,
             interpretation: 'no significant bias detected'
+          },
+          beggTest: {
+            tau: 0.08,
+            pValue: 0.22,
+            significant: false
           },
           funnelPlot: 'symmetrical'
         },
+        subgroupAnalysis: {
+          subgroups: [
+            {
+              name: '高质量研究',
+              studies: 8,
+              pooledEffect: 0.52,
+              confidenceInterval: [0.28, 0.76],
+              pValue: 0.001
+            },
+            {
+              name: '中等质量研究',
+              studies: 5,
+              pooledEffect: 0.38,
+              confidenceInterval: [0.15, 0.61],
+              pValue: 0.003
+            }
+          ],
+          betweenGroupsTest: {
+            Q: 2.45,
+            df: 1,
+            pValue: 0.12
+          }
+        },
+        sensitivityAnalysis: [
+          {
+            excludedStudy: 'Study 1',
+            pooledEffect: 0.43,
+            confidenceInterval: [0.21, 0.65]
+          },
+          {
+            excludedStudy: 'Study 2',
+            pooledEffect: 0.47,
+            confidenceInterval: [0.25, 0.69]
+          },
+          {
+            excludedStudy: 'Study 3',
+            pooledEffect: 0.44,
+            confidenceInterval: [0.22, 0.66]
+          }
+        ],
         studyCount: selectedDatasets.length,
         totalParticipants: datasets
           .filter(d => selectedDatasets.includes(d.id))
@@ -211,11 +276,32 @@ const Analysis: React.FC = () => {
           pValue: mockResults.heterogeneity.pValue
         }
       };
-      const interpretation = await interpretResults(metaAnalysisData);
+      
+      // 获取综合AI解读
+      const comprehensiveInterpretation = await interpretComprehensiveResults(mockResults);
+      
+      // 获取各项专项AI解读
+      const interpretations: any = {
+        comprehensive: comprehensiveInterpretation
+      };
+      
+      if (mockResults.publicationBias) {
+        interpretations.publicationBias = await interpretPublicationBias(mockResults.publicationBias);
+      }
+      
+      if (mockResults.subgroupAnalysis) {
+        interpretations.subgroupAnalysis = await interpretSubgroupAnalysis(mockResults.subgroupAnalysis);
+      }
+      
+      if (mockResults.sensitivityAnalysis) {
+        interpretations.sensitivityAnalysis = await interpretSensitivityAnalysis(mockResults.sensitivityAnalysis);
+      }
+      
+      setAiInterpretations(interpretations);
       
       const finalResults = {
         ...mockResults,
-        aiInterpretation: interpretation.interpretation || '分析完成'
+        aiInterpretation: comprehensiveInterpretation.summary || comprehensiveInterpretation.interpretation || '分析完成'
       };
       
       setAnalysisResults(finalResults);
@@ -420,14 +506,77 @@ const Analysis: React.FC = () => {
               
               <div className="mt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  附加分析
+                  统计分析
                 </label>
                 <div className="space-y-3">
                   {[
                     { key: 'heterogeneityTest', label: '异质性检验' },
-                    { key: 'publicationBias', label: '发表偏倚检验' },
-                    { key: 'subgroupAnalysis', label: '亚组分析' },
-                    { key: 'sensitivityAnalysis', label: '敏感性分析' }
+                    { key: 'publicationBias', label: '发表偏倚检验（需要≥10个研究）' },
+                    { key: 'sensitivityAnalysis', label: '敏感性分析' },
+                    { key: 'pythonAnalysis', label: 'Python高级统计分析' }
+                  ].map((option) => (
+                    <label key={option.key} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={analysisConfig[option.key as keyof AnalysisConfig] as boolean}
+                        onChange={(e) => setAnalysisConfig(prev => ({
+                          ...prev,
+                          [option.key]: e.target.checked
+                        }))}
+                        className="mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <span className="text-sm text-gray-700">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  亚组分析
+                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={analysisConfig.subgroupAnalysis}
+                      onChange={(e) => setAnalysisConfig(prev => ({
+                        ...prev,
+                        subgroupAnalysis: e.target.checked
+                      }))}
+                      className="mr-3 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-700">启用亚组分析</span>
+                  </label>
+                  
+                  {analysisConfig.subgroupAnalysis && (
+                    <div className="ml-7">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        分组变量
+                      </label>
+                      <input
+                        type="text"
+                        value={analysisConfig.subgroupVariable || ''}
+                        onChange={(e) => setAnalysisConfig(prev => ({
+                          ...prev,
+                          subgroupVariable: e.target.value
+                        }))}
+                        placeholder="输入分组变量名称（如：study_type, population等）"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  图表生成
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { key: 'forestPlot', label: '森林图（Forest Plot）' },
+                    { key: 'funnelPlot', label: '漏斗图（Funnel Plot）' }
                   ].map((option) => (
                     <label key={option.key} className="flex items-center">
                       <input
@@ -619,14 +768,228 @@ const Analysis: React.FC = () => {
                 </div>
               </div>
               
-              {/* AI解释 */}
-              {analysisResults.aiInterpretation && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-yellow-900 mb-2 flex items-center">
+              {/* AI综合解释 */}
+              {aiInterpretations.comprehensive && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-blue-900 mb-4 flex items-center">
                     <Brain className="h-5 w-5 mr-2" />
-                    AI结果解释
+                    AI综合结果解读
                   </h3>
-                  <p className="text-yellow-800">{analysisResults.aiInterpretation.summary || '分析结果显示统计学显著性，建议进一步验证。'}</p>
+                  
+                  {/* 结果摘要 */}
+                  {aiInterpretations.comprehensive.summary && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-blue-800 mb-2">结果摘要</h4>
+                      <p className="text-blue-700 text-sm bg-white rounded-lg p-3">
+                        {aiInterpretations.comprehensive.summary}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* 临床意义 */}
+                  {aiInterpretations.comprehensive.clinicalSignificance && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-blue-800 mb-2">临床意义</h4>
+                      <p className="text-blue-700 text-sm bg-white rounded-lg p-3">
+                        {aiInterpretations.comprehensive.clinicalSignificance}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* 证据质量 */}
+                  {aiInterpretations.comprehensive.evidenceQuality && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-blue-800 mb-2">证据质量</h4>
+                      <p className="text-blue-700 text-sm bg-white rounded-lg p-3">
+                        {aiInterpretations.comprehensive.evidenceQuality}
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* 主要局限性 */}
+                  {aiInterpretations.comprehensive.limitations && aiInterpretations.comprehensive.limitations.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="font-medium text-blue-800 mb-2">主要局限性</h4>
+                      <div className="bg-white rounded-lg p-3">
+                        <ul className="text-blue-700 text-sm space-y-1">
+                          {aiInterpretations.comprehensive.limitations.map((limitation: string, index: number) => (
+                            <li key={index} className="flex items-start">
+                              <span className="text-blue-500 mr-2">•</span>
+                              <span>{limitation}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 未来研究建议 */}
+                  {aiInterpretations.comprehensive.futureDirections && aiInterpretations.comprehensive.futureDirections.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-blue-800 mb-2">未来研究建议</h4>
+                      <div className="bg-white rounded-lg p-3">
+                        <ul className="text-blue-700 text-sm space-y-1">
+                          {aiInterpretations.comprehensive.futureDirections.map((direction: string, index: number) => (
+                            <li key={index} className="flex items-start">
+                              <span className="text-blue-500 mr-2">•</span>
+                              <span>{direction}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* 发表偏倚检验结果 */}
+              {analysisResults.publicationBias && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-red-900 mb-3">发表偏倚检验</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div className="bg-white rounded-lg p-3">
+                      <h4 className="font-medium text-gray-900 mb-2">Egger回归检验</h4>
+                      <p className="text-sm text-gray-600">截距: {analysisResults.publicationBias.eggerTest.intercept.toFixed(3)}</p>
+                      <p className="text-sm text-gray-600">P值: {analysisResults.publicationBias.eggerTest.pValue.toFixed(3)}</p>
+                      <p className={`text-sm font-medium ${
+                        analysisResults.publicationBias.eggerTest.significant ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {analysisResults.publicationBias.eggerTest.significant ? '存在发表偏倚' : '无明显发表偏倚'}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded-lg p-3">
+                      <h4 className="font-medium text-gray-900 mb-2">Begg秩相关检验</h4>
+                      <p className="text-sm text-gray-600">Tau: {analysisResults.publicationBias.beggTest.tau.toFixed(3)}</p>
+                      <p className="text-sm text-gray-600">P值: {analysisResults.publicationBias.beggTest.pValue.toFixed(3)}</p>
+                      <p className={`text-sm font-medium ${
+                        analysisResults.publicationBias.beggTest.significant ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {analysisResults.publicationBias.beggTest.significant ? '存在发表偏倚' : '无明显发表偏倚'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* AI解读 */}
+                  {aiInterpretations.publicationBias && (
+                    <div className="bg-white border border-red-100 rounded-lg p-3">
+                      <h4 className="font-medium text-red-800 mb-2 flex items-center">
+                        <Brain className="h-4 w-4 mr-2" />
+                        AI专业解读
+                      </h4>
+                      <p className="text-red-700 text-sm whitespace-pre-line">
+                        {aiInterpretations.publicationBias}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* 亚组分析结果 */}
+              {analysisResults.subgroupAnalysis && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-purple-900 mb-3">亚组分析结果</h3>
+                  <div className="space-y-3 mb-4">
+                    {analysisResults.subgroupAnalysis.subgroups.map((subgroup: any, index: number) => (
+                      <div key={index} className="bg-white rounded-lg p-3">
+                        <h4 className="font-medium text-gray-900 mb-2">{subgroup.name}</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                          <div>
+                            <span className="text-gray-600">研究数: </span>
+                            <span className="font-medium">{subgroup.studies}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">效应量: </span>
+                            <span className="font-medium">{subgroup.pooledEffect.toFixed(3)}</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">95% CI: </span>
+                            <span className="font-medium">
+                              [{subgroup.confidenceInterval[0].toFixed(3)}, {subgroup.confidenceInterval[1].toFixed(3)}]
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-600">P值: </span>
+                            <span className={`font-medium ${
+                              subgroup.pValue < 0.05 ? 'text-green-600' : 'text-gray-600'
+                            }`}>
+                              {subgroup.pValue.toFixed(3)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    <div className="bg-white rounded-lg p-3 border-t border-purple-200">
+                      <h4 className="font-medium text-gray-900 mb-2">组间异质性检验</h4>
+                      <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-600">Q统计量: </span>
+                          <span className="font-medium">{analysisResults.subgroupAnalysis.betweenGroupsTest.Q.toFixed(3)}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">自由度: </span>
+                          <span className="font-medium">{analysisResults.subgroupAnalysis.betweenGroupsTest.df}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-600">P值: </span>
+                          <span className={`font-medium ${
+                            analysisResults.subgroupAnalysis.betweenGroupsTest.pValue < 0.05 ? 'text-red-600' : 'text-green-600'
+                          }`}>
+                            {analysisResults.subgroupAnalysis.betweenGroupsTest.pValue.toFixed(3)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* AI解读 */}
+                  {aiInterpretations.subgroupAnalysis && (
+                    <div className="bg-white border border-purple-100 rounded-lg p-3">
+                      <h4 className="font-medium text-purple-800 mb-2 flex items-center">
+                        <Brain className="h-4 w-4 mr-2" />
+                        AI专业解读
+                      </h4>
+                      <p className="text-purple-700 text-sm whitespace-pre-line">
+                        {aiInterpretations.subgroupAnalysis}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* 敏感性分析结果 */}
+              {analysisResults.sensitivityAnalysis && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-orange-900 mb-3">敏感性分析</h3>
+                  <div className="bg-white rounded-lg p-3 mb-4">
+                    <p className="text-sm text-gray-600 mb-3">逐一排除研究后的效应量变化：</p>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {analysisResults.sensitivityAnalysis.map((result: any, index: number) => (
+                        <div key={index} className="flex justify-between items-center text-sm border-b border-gray-100 pb-1">
+                          <span className="text-gray-600">排除研究 {result.excludedStudy}:</span>
+                          <div className="text-right">
+                            <span className="font-medium">{result.pooledEffect.toFixed(3)}</span>
+                            <span className="text-gray-500 ml-2">
+                              [{result.confidenceInterval[0].toFixed(3)}, {result.confidenceInterval[1].toFixed(3)}]
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* AI解读 */}
+                  {aiInterpretations.sensitivityAnalysis && (
+                    <div className="bg-white border border-orange-100 rounded-lg p-3">
+                      <h4 className="font-medium text-orange-800 mb-2 flex items-center">
+                        <Brain className="h-4 w-4 mr-2" />
+                        AI专业解读
+                      </h4>
+                      <p className="text-orange-700 text-sm whitespace-pre-line">
+                        {aiInterpretations.sensitivityAnalysis}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

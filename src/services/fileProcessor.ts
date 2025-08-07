@@ -6,7 +6,7 @@ import mammoth from 'mammoth';
 export interface FileData {
   id: string;
   name: string;
-  type: 'csv' | 'excel' | 'word';
+  type: 'csv' | 'excel' | 'word' | 'txt';
   size: number;
   uploadedAt: Date;
   data?: any[];
@@ -45,7 +45,8 @@ class FileProcessor {
   private readonly supportedTypes = {
     csv: ['.csv'],
     excel: ['.xlsx', '.xls'],
-    word: ['.docx']
+    word: ['.docx'],
+    txt: ['.txt']
   };
 
   // 必需的CSV/Excel列名（中英文对照）
@@ -59,12 +60,13 @@ class FileProcessor {
   };
 
   // 检查文件类型
-  getFileType(file: File): 'csv' | 'excel' | 'word' | 'unsupported' {
+  getFileType(file: File): 'csv' | 'excel' | 'word' | 'txt' | 'unsupported' {
     const extension = '.' + file.name.split('.').pop()?.toLowerCase();
     
     if (this.supportedTypes.csv.includes(extension)) return 'csv';
     if (this.supportedTypes.excel.includes(extension)) return 'excel';
     if (this.supportedTypes.word.includes(extension)) return 'word';
+    if (this.supportedTypes.txt.includes(extension)) return 'txt';
     
     return 'unsupported';
   }
@@ -95,6 +97,9 @@ class FileProcessor {
           break;
         case 'word':
           fileData.content = await this.parseWord(file);
+          break;
+        case 'txt':
+          fileData.content = await this.parseTXT(file);
           break;
       }
     } catch (error) {
@@ -181,6 +186,28 @@ class FileProcessor {
       };
       
       reader.readAsArrayBuffer(file);
+    });
+  }
+
+  // 解析TXT文件
+  private async parseTXT(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          const content = e.target?.result as string;
+          resolve(content);
+        } catch (error) {
+          reject(new Error(`TXT文件解析错误: ${error instanceof Error ? error.message : '未知错误'}`));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error('文件读取失败'));
+      };
+      
+      reader.readAsText(file, 'UTF-8');
     });
   }
 

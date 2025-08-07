@@ -19,7 +19,7 @@ export interface Dataset {
   description?: string;
   fileName: string;
   fileSize: number;
-  fileType: 'csv' | 'excel' | 'word' | 'xlsx' | 'xls' | 'docx' | 'unknown';
+  fileType: 'csv' | 'excel' | 'word' | 'xlsx' | 'xls' | 'docx' | 'txt' | 'unknown';
   rowCount: number;
   columnCount: number;
   recordCount?: number;

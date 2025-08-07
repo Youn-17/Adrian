@@ -27,18 +27,26 @@ const Settings: React.FC = () => {
   const { exportData, importData, clearAllData, getStorageInfo } = useDataManagement();
   const [localSettings, setLocalSettings] = useState<UserSettings>(settings || {
     general: {
-      language: 'zh-CN',
+      language: 'zh',
       autoSave: true,
-      notifications: true
+      notifications: true,
+      autoSaveInterval: 30
     },
     appearance: {
       theme: 'light',
       fontSize: 'medium',
       compactMode: false
     },
+    apiSettings: {
+      deepseekApiKey: '',
+      requestTimeout: 30000,
+      maxRetries: 3,
+      cacheResults: true
+    },
     privacy: {
-      analytics: false,
-      crashReports: true
+      dataRetention: 365,
+      anonymizeData: false,
+      shareUsageStats: false
     }
   });
   const [storageInfo, setStorageInfo] = useState<any>(null);
