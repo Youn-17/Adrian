@@ -212,7 +212,7 @@ const Home: React.FC = () => {
                 <li><Link to="/dashboard" className="text-gray-400 hover:text-white transition-colors">仪表板</Link></li>
                 <li><Link to="/upload" className="text-gray-400 hover:text-white transition-colors">数据上传</Link></li>
                 <li><Link to="/analysis" className="text-gray-400 hover:text-white transition-colors">分析工具</Link></li>
-                <li><Link to="settings" className="text-gray-400 hover:text-white transition-colors">系统设置</Link></li>
+                <li><Link to="/settings" className="text-gray-400 hover:text-white transition-colors">系统设置</Link></li>
               </ul>
             </div>
             <div>
