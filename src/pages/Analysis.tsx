@@ -406,8 +406,8 @@ const Analysis: React.FC = () => {
                 <p className="text-yellow-700 mt-1">
                   请先在设置中配置AI平台的API密钥，才能使用AI分析功能。
                 </p>
-                <Link 
-                  to="settings" 
+                <Link
+                  to="/settings"
                   className="inline-flex items-center mt-3 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors"
                 >
                   <Settings className="h-4 w-4 mr-2" />
